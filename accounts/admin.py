@@ -212,6 +212,11 @@ class QuizAdmin(admin.ModelAdmin):
     inlines = [QuestionInline]
 
 
+class ChoiceInline(admin.TabularInline):
+    model = Choice
+    extra = 0
+
+
 @admin.register(Question)
 class QuestionAdmin(admin.ModelAdmin):
     list_display = (
