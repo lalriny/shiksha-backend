@@ -57,6 +57,7 @@ INSTALLED_APPS = [
     "assignments",
     "quizzes",
     "livestream",
+    "django_extensions",
 ]
 
 MIDDLEWARE = [
