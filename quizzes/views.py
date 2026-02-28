@@ -135,7 +135,6 @@ class StudentDashboardView(APIView):
             "created_by",
         ).distinct()
 
-        # ✅ Subject filter (your frontend sends ?subject=uuid)
         if subject_id:
             quizzes = quizzes.filter(subject_id=subject_id)
 
@@ -199,6 +198,7 @@ class SubmitQuizView(APIView):
         quiz = get_object_or_404(
             Quiz.objects.select_related("subject__course"),
             pk=pk,
+            is_published=True,
         )
 
         serializer = QuizSubmitSerializer(
@@ -242,9 +242,6 @@ class QuizDetailView(APIView):
         ).exists():
             raise ValidationError("Not enrolled in this course.")
 
-        if quiz.due_date <= timezone.now():
-            raise ValidationError("Quiz expired.")
-
         serializer = QuizDetailSerializer(
             quiz,
             context={"request": request},
@@ -281,7 +278,8 @@ class QuizResultView(APIView):
 
         for answer in attempt.answers.all():
             correct_choice = answer.question.choices.filter(
-                is_correct=True).first()
+                is_correct=True
+            ).first()
 
             result_questions.append({
                 "id": answer.question.id,
@@ -302,7 +300,7 @@ class QuizResultView(APIView):
             "questions": result_questions,
         }
 
-        serializer = QuizResultSerializer(data)
+        serializer = QuizResultSerializer(data=data)
         serializer.is_valid(raise_exception=True)
 
         return Response(serializer.data)
