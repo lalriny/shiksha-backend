@@ -1,4 +1,3 @@
-from django.db import transaction
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 
@@ -10,6 +9,7 @@ from rest_framework.exceptions import ValidationError
 
 from accounts.permissions import IsEmailVerified
 from enrollments.models import Enrollment
+from courses.models import SubjectTeacher
 
 from .models import Quiz, QuizAttempt
 from .serializers import (
@@ -17,6 +17,8 @@ from .serializers import (
     QuestionCreateSerializer,
     QuizDashboardSerializer,
     QuizSubmitSerializer,
+    QuizDetailSerializer,
+    QuizResultSerializer,
 )
 
 
@@ -121,6 +123,7 @@ class StudentDashboardView(APIView):
 
     def get(self, request):
         status_filter = request.query_params.get("status")
+        subject_id = request.query_params.get("subject")
 
         quizzes = Quiz.objects.filter(
             subject__course__enrollments__user=request.user,
@@ -130,8 +133,11 @@ class StudentDashboardView(APIView):
             "subject",
             "subject__course",
             "created_by",
-            "created_by__profile",
         ).distinct()
+
+        # ✅ Subject filter (your frontend sends ?subject=uuid)
+        if subject_id:
+            quizzes = quizzes.filter(subject_id=subject_id)
 
         submitted_ids = QuizAttempt.objects.filter(
             student=request.user,
@@ -214,10 +220,7 @@ class SubmitQuizView(APIView):
 
 
 class QuizDetailView(APIView):
-    permission_classes = [
-        IsAuthenticated,
-        IsEmailVerified,
-    ]
+    permission_classes = [IsAuthenticated, IsEmailVerified]
 
     def get(self, request, pk):
         quiz = get_object_or_404(
@@ -226,16 +229,12 @@ class QuizDetailView(APIView):
                 "subject",
                 "subject__course",
                 "created_by",
-                "created_by__profile",
             )
-            .prefetch_related(
-                "questions__choices"
-            ),
+            .prefetch_related("questions__choices"),
             pk=pk,
             is_published=True,
         )
 
-        # Enrollment check
         if not Enrollment.objects.filter(
             user=request.user,
             course=quiz.subject.course,
@@ -243,7 +242,6 @@ class QuizDetailView(APIView):
         ).exists():
             raise ValidationError("Not enrolled in this course.")
 
-        # Expiry check
         if quiz.due_date <= timezone.now():
             raise ValidationError("Quiz expired.")
 
@@ -256,10 +254,7 @@ class QuizDetailView(APIView):
 
 
 class QuizResultView(APIView):
-    permission_classes = [
-        IsAuthenticated,
-        IsEmailVerified,
-    ]
+    permission_classes = [IsAuthenticated, IsEmailVerified]
 
     def get(self, request, pk):
         quiz = get_object_or_404(
@@ -267,35 +262,32 @@ class QuizResultView(APIView):
                 "subject",
                 "subject__course",
                 "created_by",
-                "created_by__profile",
             ),
             pk=pk,
         )
 
-        try:
-            attempt = QuizAttempt.objects.select_related(
-                "quiz"
-            ).prefetch_related(
+        attempt = get_object_or_404(
+            QuizAttempt.objects.prefetch_related(
                 "answers__question",
                 "answers__selected_choice",
-            ).get(
-                quiz=quiz,
-                student=request.user,
-                status=QuizAttempt.STATUS_SUBMITTED,
-            )
-        except QuizAttempt.DoesNotExist:
-            raise ValidationError("Quiz not submitted yet.")
+                "answers__question__choices",
+            ),
+            quiz=quiz,
+            student=request.user,
+            status=QuizAttempt.STATUS_SUBMITTED,
+        )
 
         result_questions = []
 
         for answer in attempt.answers.all():
-            correct_choice = answer.question.choices.get(is_correct=True)
+            correct_choice = answer.question.choices.filter(
+                is_correct=True).first()
 
             result_questions.append({
                 "id": answer.question.id,
                 "text": answer.question.text,
                 "selected_choice": answer.selected_choice.text,
-                "correct_choice": correct_choice.text,
+                "correct_choice": correct_choice.text if correct_choice else "",
                 "is_correct": answer.is_correct,
             })
 
@@ -303,7 +295,7 @@ class QuizResultView(APIView):
             "quiz_id": quiz.id,
             "title": quiz.title,
             "subject_name": quiz.subject.name,
-            "teacher_name": quiz.created_by.profile.full_name,
+            "teacher_name": quiz.created_by.email,
             "total_marks": quiz.total_marks,
             "score": attempt.score,
             "submitted_at": attempt.submitted_at,
@@ -311,28 +303,22 @@ class QuizResultView(APIView):
         }
 
         serializer = QuizResultSerializer(data)
+        serializer.is_valid(raise_exception=True)
+
         return Response(serializer.data)
 
 
 class StudentQuizSubjectsView(APIView):
-    permission_classes = [
-        IsAuthenticated,
-        IsEmailVerified,
-    ]
+    permission_classes = [IsAuthenticated, IsEmailVerified]
 
     def get(self, request):
-        quizzes = (
-            Quiz.objects
-            .filter(
-                is_published=True,
-                subject__course__enrollments__user=request.user,
-                subject__course__enrollments__status=Enrollment.STATUS_ACTIVE,
-            )
-            .select_related(
-                "subject",
-                "created_by",
-                "created_by__profile",
-            )
+        quizzes = Quiz.objects.filter(
+            is_published=True,
+            subject__course__enrollments__user=request.user,
+            subject__course__enrollments__status=Enrollment.STATUS_ACTIVE,
+        ).select_related(
+            "subject",
+            "created_by",
         )
 
         subjects_map = {}
@@ -344,7 +330,7 @@ class StudentQuizSubjectsView(APIView):
                 subjects_map[subject.id] = {
                     "id": subject.id,
                     "subject": subject.name,
-                    "teacher": quiz.created_by.profile.full_name,
+                    "teacher": quiz.created_by.email,
                 }
 
         return Response(list(subjects_map.values()))

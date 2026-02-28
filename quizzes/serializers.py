@@ -4,16 +4,21 @@ from django.utils import timezone
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
+from courses.models import SubjectTeacher
+from enrollments.models import Enrollment
+
 from .models import (
     Quiz,
     Question,
     Choice,
     QuizAttempt,
     StudentAnswer,
-
 )
-from enrollments.models import Enrollment
 
+
+# =====================================================
+# CHOICE SERIALIZERS
+# =====================================================
 
 class ChoiceAdminSerializer(serializers.ModelSerializer):
     class Meta:
@@ -26,6 +31,10 @@ class ChoicePublicSerializer(serializers.ModelSerializer):
         model = Choice
         fields = ["id", "text"]
 
+
+# =====================================================
+# QUESTION CREATION
+# =====================================================
 
 class QuestionCreateSerializer(serializers.ModelSerializer):
     choices = ChoiceAdminSerializer(many=True)
@@ -42,14 +51,10 @@ class QuestionCreateSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         choices = attrs.get("choices", [])
-        correct_count = sum(
-            1 for c in choices if c.get("is_correct")
-        )
+        correct_count = sum(1 for c in choices if c.get("is_correct"))
 
         if correct_count != 1:
-            raise ValidationError(
-                "Exactly one correct answer required."
-            )
+            raise ValidationError("Exactly one correct answer required.")
 
         return attrs
 
@@ -71,6 +76,10 @@ class QuestionCreateSerializer(serializers.ModelSerializer):
 
         return question
 
+
+# =====================================================
+# QUIZ CREATION
+# =====================================================
 
 class QuizCreateSerializer(serializers.ModelSerializer):
 
@@ -97,15 +106,13 @@ class QuizCreateSerializer(serializers.ModelSerializer):
             subject=subject,
             teacher=user
         ).exists():
-            raise ValidationError(
-                "You are not assigned to this subject."
-            )
+            raise ValidationError("You are not assigned to this subject.")
 
         return subject
 
     def validate_due_date(self, due_date):
         if due_date <= timezone.now():
-            raise ValidationError("Due date must be in future.")
+            raise ValidationError("Due date must be in the future.")
         return due_date
 
     def create(self, validated_data):
@@ -115,17 +122,18 @@ class QuizCreateSerializer(serializers.ModelSerializer):
         )
 
 
+# =====================================================
+# STUDENT DASHBOARD SERIALIZER
+# =====================================================
+
 class QuizDashboardSerializer(serializers.ModelSerializer):
-    subject_name = serializers.CharField(
-        source="subject.name",
-        read_only=True
-    )
+    subject_name = serializers.CharField(source="subject.name", read_only=True)
     course_title = serializers.CharField(
-        source="subject.course.title",
-        read_only=True
-    )
+        source="subject.course.title", read_only=True)
+
+    # 🔥 FIXED (removed profile dependency)
     teacher_name = serializers.CharField(
-        source="created_by.profile.full_name",
+        source="created_by.email",
         read_only=True
     )
 
@@ -170,6 +178,10 @@ class QuizDashboardSerializer(serializers.ModelSerializer):
 
         return attempt.score if attempt else None
 
+
+# =====================================================
+# QUIZ SUBMISSION
+# =====================================================
 
 class QuizSubmitSerializer(serializers.Serializer):
     answers = serializers.ListField(
@@ -227,20 +239,20 @@ class QuizSubmitSerializer(serializers.Serializer):
             question_id = item.get("question")
             choice_id = item.get("selected_choice")
 
-            try:
-                question = Question.objects.get(
-                    id=question_id,
-                    quiz=quiz
-                )
-            except Question.DoesNotExist:
+            question = Question.objects.filter(
+                id=question_id,
+                quiz=quiz
+            ).first()
+
+            if not question:
                 raise ValidationError("Invalid question.")
 
-            try:
-                choice = Choice.objects.get(
-                    id=choice_id,
-                    question=question
-                )
-            except Choice.DoesNotExist:
+            choice = Choice.objects.filter(
+                id=choice_id,
+                question=question
+            ).first()
+
+            if not choice:
                 raise ValidationError("Invalid choice.")
 
             if choice.is_correct:
@@ -261,6 +273,10 @@ class QuizSubmitSerializer(serializers.Serializer):
         return attempt
 
 
+# =====================================================
+# QUIZ DETAIL (FOR TAKING QUIZ)
+# =====================================================
+
 class QuestionPublicSerializer(serializers.ModelSerializer):
     choices = ChoicePublicSerializer(many=True, read_only=True)
 
@@ -276,16 +292,13 @@ class QuestionPublicSerializer(serializers.ModelSerializer):
 
 
 class QuizDetailSerializer(serializers.ModelSerializer):
-    subject_name = serializers.CharField(
-        source="subject.name",
-        read_only=True
-    )
+    subject_name = serializers.CharField(source="subject.name", read_only=True)
     course_title = serializers.CharField(
-        source="subject.course.title",
-        read_only=True
-    )
+        source="subject.course.title", read_only=True)
+
+    # 🔥 FIXED
     teacher_name = serializers.CharField(
-        source="created_by.profile.full_name",
+        source="created_by.email",
         read_only=True
     )
 
@@ -310,6 +323,10 @@ class QuizDetailSerializer(serializers.ModelSerializer):
         questions = obj.questions.all().order_by("order")
         return QuestionPublicSerializer(questions, many=True).data
 
+
+# =====================================================
+# QUIZ RESULT SERIALIZERS
+# =====================================================
 
 class QuestionResultSerializer(serializers.Serializer):
     id = serializers.UUIDField()
