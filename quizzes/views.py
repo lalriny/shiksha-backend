@@ -21,6 +21,7 @@ from .serializers import (
     QuizSubmitSerializer,
     QuizDetailSerializer,
     QuizResultSerializer,
+
 )
 
 
@@ -429,4 +430,34 @@ class TeacherDeleteQuizView(APIView):
         return Response(
             {"detail": "Quiz deleted successfully."},
             status=status.HTTP_204_NO_CONTENT
+        )
+
+
+class TeacherSubjectQuizListView(generics.ListAPIView):
+    permission_classes = [IsAuthenticated, IsEmailVerified]
+
+    def get_queryset(self):
+        user = self.request.user
+        subject_id = self.kwargs["subject_id"]
+
+        # 🔐 Role check
+        if not user.has_role("TEACHER"):
+            raise PermissionDenied("Only teachers allowed.")
+
+        # 🔐 Ensure teacher assigned to subject
+        subject = get_object_or_404(
+            Subject.objects.prefetch_related("subject_teachers"),
+            id=subject_id
+        )
+
+        if not subject.subject_teachers.filter(
+            teacher=user
+        ).exists():
+            raise PermissionDenied("Not assigned to this subject.")
+
+        return (
+            Quiz.objects
+            .filter(subject=subject)
+            .annotate(total_attempts=Count("attempts"))
+            .order_by("-created_at")
         )
