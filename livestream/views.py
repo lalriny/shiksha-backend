@@ -37,7 +37,7 @@ class StudentLiveSessionListView(generics.ListAPIView):
     def get_queryset(self):
         user = self.request.user
 
-        if not user.has_role("student"):
+        if not user.has_role("STUDENT"):
             raise PermissionDenied("Only students allowed.")
 
         active_courses = Enrollment.objects.filter(
@@ -62,14 +62,22 @@ class TeacherLiveSessionListView(generics.ListAPIView):
 
     def get_queryset(self):
         user = self.request.user
+        subject_id = self.request.query_params.get("subject_id")
 
-        if not user.has_role("teacher"):
+        if not user.has_role("TEACHER"):
             raise PermissionDenied("Only teachers allowed.")
+
+        if not subject_id:
+            return LiveSession.objects.none()
+
+        # 🔐 verify teacher assigned
+        if not user.subject_assignments.filter(subject_id=subject_id).exists():
+            raise PermissionDenied("Not assigned to this subject.")
 
         return (
             LiveSession.objects
-            .filter(created_by=user)
-            .select_related("course", "subject")
+            .filter(subject_id=subject_id)
+            .select_related("course", "subject", "created_by")
             .order_by("start_time")
         )
 
@@ -91,7 +99,7 @@ def join_live_session(request, session_id):
         return Response({"detail": "Session ended"}, status=403)
 
     # STUDENT
-    if user.has_role("student"):
+    if user.has_role("STUDENT"):
 
         is_enrolled = Enrollment.objects.filter(
             user=user,
@@ -108,7 +116,7 @@ def join_live_session(request, session_id):
         is_teacher = False
 
     # TEACHER
-    elif user.has_role("teacher"):
+    elif user.has_role("TEACHER"):
 
         if not session.subject.subject_teachers.filter(teacher=user).exists():
             return Response({"detail": "Not assigned to this subject"}, status=403)
@@ -133,7 +141,7 @@ def join_live_session(request, session_id):
         "livekit_url": settings.LIVEKIT_URL,
         "token": token,
         "room": session.room_name,
-        "role": "teacher" if is_teacher else "student",
+        "role": "TEACHER" if is_teacher else "STUDENT",
     })
 
 
