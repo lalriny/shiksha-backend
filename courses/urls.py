@@ -12,6 +12,9 @@ from .views import (
 )
 
 urlpatterns = [
+
+
+    path("teacher/my-classes/", TeacherMyClassesView.as_view()),
     path("", CreateCourseView.as_view()),                  # POST /api/courses/
     # GET /api/courses/mine/
     path("mine/", MyCoursesView.as_view()),
@@ -26,6 +29,6 @@ urlpatterns = [
 
 
 
-    path("teacher/my-classes/", TeacherMyClassesView.as_view()),
+
 
 ]
