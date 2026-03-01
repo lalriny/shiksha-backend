@@ -10,7 +10,8 @@ from .views import (
     QuizDetailView,
     QuizResultView,
     StudentQuizSubjectsView,
-    TeacherDeleteQuizView
+    TeacherDeleteQuizView,
+    TeacherSubjectQuizListView
 )
 
 urlpatterns = [
