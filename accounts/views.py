@@ -145,7 +145,7 @@ class LoginView(APIView):
             secure=True,
             samesite="None",
             domain=".shikshacom.com",
-            max_age=600,
+            max_age=6000,
         )
 
         response.set_cookie(
