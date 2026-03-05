@@ -60,7 +60,6 @@ INSTALLED_APPS = [
     "django_extensions",
     "livestream.apps.LivestreamConfig",
     "dashboard",
-    "activity",
     "activity.apps.ActivityConfig",
 ]
 

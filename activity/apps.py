@@ -6,4 +6,4 @@ class ActivityConfig(AppConfig):
     name = "activity"
 
     def ready(self):
-        import activity.signals
+        from . import signals
