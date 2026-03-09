@@ -4,69 +4,114 @@ from django.conf import settings
 from django.utils import timezone
 
 
+# ==========================================
+# ASSIGNMENT MODEL
+# ==========================================
+
 class Assignment(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False
+    )
 
     chapter = models.ForeignKey(
         "courses.Chapter",
         on_delete=models.CASCADE,
         related_name="assignments",
+        db_index=True
     )
 
-    title = models.CharField(max_length=255)
-    description = models.TextField(blank=True)
+    title = models.CharField(
+        max_length=255
+    )
+
+    description = models.TextField(
+        blank=True
+    )
 
     attachment = models.FileField(
         upload_to="assignments/files/",
         null=True,
-        blank=True,
+        blank=True
     )
 
-    due_date = models.DateTimeField()
+    due_date = models.DateTimeField(
+        db_index=True
+    )
 
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        db_index=True
+    )
 
     class Meta:
         ordering = ["-created_at"]
+
         indexes = [
             models.Index(fields=["chapter"]),
             models.Index(fields=["due_date"]),
         ]
 
     def __str__(self):
-        return self.title
+        return f"{self.title} ({self.chapter})"
 
     @property
     def is_expired(self):
         return timezone.now() > self.due_date
 
 
+# ==========================================
+# ASSIGNMENT SUBMISSION MODEL
+# ==========================================
+
 class AssignmentSubmission(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False
+    )
 
     assignment = models.ForeignKey(
         Assignment,
         on_delete=models.CASCADE,
         related_name="submissions",
+        db_index=True
     )
 
     student = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name="assignment_submissions",
+        db_index=True
     )
 
     submitted_file = models.FileField(
         upload_to="assignments/submissions/"
     )
 
-    submitted_at = models.DateTimeField(auto_now=True)
+    submitted_at = models.DateTimeField(
+        auto_now=True,
+        db_index=True
+    )
 
     class Meta:
-        unique_together = ("assignment", "student")
-        indexes = [
-            models.Index(fields=["assignment", "student"]),
+
+        constraints = [
+            models.UniqueConstraint(
+                fields=["assignment", "student"],
+                name="unique_assignment_submission"
+            )
         ]
 
+        indexes = [
+            models.Index(fields=["assignment", "student"]),
+            models.Index(fields=["submitted_at"]),
+        ]
+
+        ordering = ["-submitted_at"]
+
     def __str__(self):
-        return f"{self.student.email} → {self.assignment.title}"
+        return f"{self.student} → {self.assignment.title}"

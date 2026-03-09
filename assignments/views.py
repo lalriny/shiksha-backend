@@ -207,7 +207,7 @@ class TeacherCreateAssignmentView(APIView):
 
         serializer = TeacherAssignmentCreateSerializer(
             data=request.data,
-            context={"request": request}
+            context={"request": request}   # required for serializer validation
         )
 
         serializer.is_valid(raise_exception=True)
