@@ -1,3 +1,4 @@
+from courses.models import Subject
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -175,3 +176,27 @@ class DeleteStudyMaterial(APIView):
             {"detail": "Material deleted successfully"},
             status=status.HTTP_204_NO_CONTENT
         )
+
+
+# ===============================
+# LIST MATERIALS OF A SUBJECT
+# ===============================
+
+class SubjectMaterials(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, subject_id):
+
+        subject = get_object_or_404(Subject, id=subject_id)
+
+        materials = (
+            StudyMaterial.objects
+            .filter(chapter__subject=subject)
+            .prefetch_related("files")
+            .order_by("-created_at")
+        )
+
+        serializer = StudyMaterialSerializer(materials, many=True)
+
+        return Response(serializer.data)
