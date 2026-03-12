@@ -1,7 +1,6 @@
 import uuid
 from django.db import models
 from django.conf import settings
-from .models_recordings import SessionRecording
 
 
 class VideoProgress(models.Model):
@@ -15,7 +14,7 @@ class VideoProgress(models.Model):
     )
 
     recording = models.ForeignKey(
-        SessionRecording,
+        "courses.SessionRecording",
         on_delete=models.CASCADE,
         related_name="progress"
     )

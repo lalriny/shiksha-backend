@@ -1,21 +1,18 @@
 import uuid
 from django.db import models
 from django.conf import settings
-from .models import Subject, Chapter
 
 
 class SessionRecording(models.Model):
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-
     subject = models.ForeignKey(
-        Subject,
+        "courses.Subject",
         on_delete=models.CASCADE,
         related_name="recordings"
     )
 
     chapter = models.ForeignKey(
-        Chapter,
+        "courses.Chapter",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
