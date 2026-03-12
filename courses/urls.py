@@ -17,7 +17,13 @@ from .views import (
 from .views_recordings import (
     SubjectRecordingsView,
     CreateRecordingView,
-    DeleteRecordingView
+    DeleteRecordingView,
+    CreateVideoSlotView,
+    SaveRecordingView
+)
+from .views_progress import (
+    GetVideoProgressView,
+    SaveVideoProgressView
 )
 
 urlpatterns = [
@@ -65,5 +71,24 @@ urlpatterns = [
     path(
         "recordings/<uuid:recording_id>/delete/",
         DeleteRecordingView.as_view(),
+    ),
+    path(
+        "recordings/create-video/",
+        CreateVideoSlotView.as_view(),
+    ),
+
+    path(
+        "subjects/<uuid:subject_id>/recordings/save/",
+        SaveRecordingView.as_view(),
+    ),
+
+    path(
+        "recordings/<uuid:recording_id>/progress/",
+        GetVideoProgressView.as_view(),
+    ),
+
+    path(
+        "recordings/<uuid:recording_id>/progress/save/",
+        SaveVideoProgressView.as_view(),
     ),
 ]

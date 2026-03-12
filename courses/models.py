@@ -1,6 +1,7 @@
 import uuid
 from django.db import models
 from django.conf import settings
+from .models_progress import VideoProgress
 
 
 class Course(models.Model):

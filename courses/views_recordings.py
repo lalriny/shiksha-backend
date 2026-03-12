@@ -58,3 +58,38 @@ class DeleteRecordingView(APIView):
         recording.delete()
 
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class CreateVideoSlotView(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+
+        title = request.data.get("title")
+
+        video = create_video(title)
+
+        return Response({
+            "video_id": video["guid"]
+        })
+
+
+class SaveRecordingView(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, subject_id):
+
+        subject = get_object_or_404(Subject, id=subject_id)
+
+        recording = SessionRecording.objects.create(
+            subject=subject,
+            title=request.data.get("title"),
+            session_date=request.data.get("session_date"),
+            duration=request.data.get("duration"),
+            bunny_video_id=request.data.get("video_id"),
+            uploaded_by=request.user,
+        )
+
+        return Response(SessionRecordingSerializer(recording).data)
