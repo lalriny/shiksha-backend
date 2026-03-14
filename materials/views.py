@@ -200,3 +200,7 @@ class SubjectMaterials(APIView):
         serializer = StudyMaterialSerializer(materials, many=True)
 
         return Response(serializer.data)
+
+
+# material tih app hi study material upload na app anita tah hian teacher ho upload na awm a api a awm a tacher ho in an upload tawh list view na a awm bawk a...chuan
+# Student side ah anfrotend end code ah student ho tana a student mater subject wise a view na API ( eg. views siam sak ve a ngai)
