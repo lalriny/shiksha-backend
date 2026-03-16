@@ -1,3 +1,5 @@
+from .serializers import RecordingSerializer
+from .models import Recording
 from django.conf import settings
 import requests
 from rest_framework.views import APIView
@@ -147,3 +149,17 @@ class SaveRecordingView(APIView):
         )
 
         return Response(SessionRecordingSerializer(recording).data)
+
+
+class RecordingDetailView(APIView):
+
+    def get(self, request, recording_id):
+
+        recording = get_object_or_404(
+            Recording,
+            id=recording_id
+        )
+
+        serializer = RecordingSerializer(recording)
+
+        return Response(serializer.data)
